@@ -1,11 +1,11 @@
 const HttpsProxyAgent = require('https-proxy-agent');
 const axios = require('axios');
 const Keyv = require('keyv');
-const { isEnabled } = require('../utils');
-const { extractBaseURL } = require('../../utils');
-const keyvRedis = require('../../cache/keyvRedis');
-// const { getAzureCredentials, genAzureChatCompletion } = require('../../utils/');
-const { openAIApiKey, userProvidedOpenAI } = require('./EndpointService').config;
+const { isEnabled } = require('~/server/utils');
+const { extractBaseURL } = require('~/utils');
+const keyvRedis = require('~/cache/keyvRedis');
+// const { getAzureCredentials, genAzureChatCompletion } = require('~/utils/');
+const { openAIApiKey, userProvidedOpenAI } = require('./Config/EndpointService').config;
 
 const modelsCache = isEnabled(process.env.USE_REDIS)
   ? new Keyv({ store: keyvRedis })
@@ -115,11 +115,13 @@ const getChatGPTBrowserModels = () => {
 
 const getAnthropicModels = () => {
   let models = [
+    'claude-2.1',
+    'claude-2',
+    'claude-1.2',
     'claude-1',
     'claude-1-100k',
     'claude-instant-1',
     'claude-instant-1-100k',
-    'claude-2',
   ];
   if (ANTHROPIC_MODELS) {
     models = String(ANTHROPIC_MODELS).split(',');

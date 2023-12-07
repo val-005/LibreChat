@@ -6,7 +6,6 @@ import type {
   TLoginUser,
   TUser,
 } from 'librechat-data-provider';
-import { EModelEndpoint } from 'librechat-data-provider';
 
 export type TSetOption = (param: number | string) => (newValue: number | string | boolean) => void;
 export type TSetExample = (
@@ -14,22 +13,6 @@ export type TSetExample = (
   type: string,
   newValue: number | string | boolean | null,
 ) => void;
-
-export const alternateName = {
-  [EModelEndpoint.openAI]: 'OpenAI',
-  [EModelEndpoint.assistant]: 'Assistants',
-  [EModelEndpoint.azureOpenAI]: 'Azure OpenAI',
-  [EModelEndpoint.bingAI]: 'Bing',
-  [EModelEndpoint.chatGPTBrowser]: 'ChatGPT',
-  [EModelEndpoint.gptPlugins]: 'Plugins',
-  [EModelEndpoint.google]: 'PaLM',
-  [EModelEndpoint.anthropic]: 'Anthropic',
-};
-
-export const supportsFiles = {
-  [EModelEndpoint.openAI]: true,
-  [EModelEndpoint.assistant]: true,
-};
 
 export enum ESide {
   Top = 'top',
@@ -49,6 +32,7 @@ export type TShowToast = {
   message: string;
   severity?: NotificationSeverity;
   showIcon?: boolean;
+  duration?: number;
 };
 
 export type TBaseSettingsProps = {
@@ -128,7 +112,6 @@ export type TMessageProps = {
   isSearchView?: boolean;
   siblingIdx?: number;
   siblingCount?: number;
-  scrollToBottom?: () => void;
   setCurrentEditId?: React.Dispatch<React.SetStateAction<string | number | null>> | null;
   setSiblingIdx?: ((value: number) => void | React.Dispatch<React.SetStateAction<number>>) | null;
 };
@@ -233,8 +216,14 @@ export type TOptionSettings = {
 
 export interface ExtendedFile {
   file: File;
+  file_id: string;
+  temp_file_id?: string;
+  type?: string;
+  filepath?: string;
+  filename?: string;
   width?: number;
   height?: number;
+  size: number;
   preview: string;
   progress: number;
 }

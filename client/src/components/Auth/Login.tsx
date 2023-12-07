@@ -16,7 +16,7 @@ function Login() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/chat/new', { replace: true });
+      navigate('/c/new', { replace: true });
     }
   }, [isAuthenticated, navigate]);
 
@@ -34,17 +34,17 @@ function Login() {
             {localize(getLoginError(error))}
           </div>
         )}
-        <LoginForm onSubmit={login} />
+        {startupConfig?.emailLoginEnabled && <LoginForm onSubmit={login} />}
         {startupConfig?.registrationEnabled && (
           <p className="my-4 text-center text-sm font-light text-gray-700">
             {' '}
             {localize('com_auth_no_account')}{' '}
-            <a href="/register" className="p-1 text-green-500 hover:underline">
+            <a href="/register" className="p-1 font-medium text-green-500 hover:underline">
               {localize('com_auth_sign_up')}
             </a>
           </p>
         )}
-        {startupConfig?.socialLoginEnabled && (
+        {startupConfig?.socialLoginEnabled && startupConfig?.emailLoginEnabled && (
           <>
             <div className="relative mt-6 flex w-full items-center justify-center border border-t uppercase">
               <div className="absolute bg-white px-3 text-xs">Or</div>

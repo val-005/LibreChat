@@ -39,6 +39,7 @@ const setup = ({
       openidImageUrl: 'http://test-server.com',
       githubLoginEnabled: true,
       discordLoginEnabled: true,
+      emailLoginEnabled: true,
       registrationEnabled: true,
       socialLoginEnabled: true,
       serverDomain: 'mock-server',
@@ -129,7 +130,7 @@ test('renders registration form', () => {
 //   console.log(history);
 //   waitFor(() => {
 //     // expect(mutate).toHaveBeenCalled();
-//     expect(history.location.pathname).toBe('/chat/new');
+//     expect(history.location.pathname).toBe('/c/new');
 //   });
 // });
 

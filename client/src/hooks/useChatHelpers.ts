@@ -15,23 +15,22 @@ import type {
   TConversation,
   TGetConversationsResponse,
 } from 'librechat-data-provider';
-import type { TAskFunction, ExtendedFile } from '~/common';
+import type { TAskFunction } from '~/common';
+import useSetFilesToDelete from './useSetFilesToDelete';
 import { useAuthContext } from './AuthContext';
+import useUserKey from './Input/useUserKey';
 import useNewConvo from './useNewConvo';
-import useUserKey from './useUserKey';
 import store from '~/store';
 
 // this to be set somewhere else
-export default function useChatHelpers(index = 0, paramId) {
+export default function useChatHelpers(index = 0, paramId: string | undefined) {
+  const [files, setFiles] = useRecoilState(store.filesByIndex(index));
+  const [showStopButton, setShowStopButton] = useState(true);
+  const [filesLoading, setFilesLoading] = useState(false);
+  const setFilesToDelete = useSetFilesToDelete();
+
   const queryClient = useQueryClient();
   const { isAuthenticated } = useAuthContext();
-  // const tempConvo = {
-  //   endpoint: null,
-  //   conversationId: null,
-  //   jailbreak: false,
-  //   examples: [],
-  //   tools: [],
-  // };
 
   const { newConversation } = useNewConvo(index);
   const { useCreateConversationAtom } = store;
@@ -39,10 +38,6 @@ export default function useChatHelpers(index = 0, paramId) {
   const { conversationId, endpoint } = conversation ?? {};
 
   const queryParam = paramId === 'new' ? paramId : conversationId ?? paramId ?? '';
-
-  // if (!queryParam && paramId && paramId !== 'new') {
-
-  // }
 
   /* Messages: here simply to fetch, don't export and use `getMessages()` instead */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -97,10 +92,6 @@ export default function useChatHelpers(index = 0, paramId) {
     [queryClient],
   );
 
-  // const getConvos = useCallback(() => {
-  //   return queryClient.getQueryData<TGetConversationsResponse>([QueryKeys.allConversations, { pageNumber: '1', active: true }]);
-  // }, [queryClient]);
-
   const invalidateConvos = useCallback(() => {
     queryClient.invalidateQueries([QueryKeys.allConversations, { active: true }]);
   }, [queryClient]);
@@ -140,6 +131,7 @@ export default function useChatHelpers(index = 0, paramId) {
       isEdited = false,
     } = {},
   ) => {
+    setShowStopButton(true);
     if (!!isSubmitting || text === '') {
       return;
     }
@@ -169,7 +161,7 @@ export default function useChatHelpers(index = 0, paramId) {
       endpoint,
       key: getExpiry(),
     } as TEndpointOption;
-    const responseSender = getResponseSender(endpointOption);
+    const responseSender = getResponseSender({ model: conversation?.model, ...endpointOption });
 
     let currentMessages: TMessage[] | null = getMessages() ?? [];
 
@@ -194,6 +186,26 @@ export default function useChatHelpers(index = 0, paramId) {
       messageId: isContinued && messageId ? messageId : fakeMessageId,
       error: false,
     };
+
+    const parentMessage = currentMessages?.find(
+      (msg) => msg.messageId === latestMessage?.parentMessageId,
+    );
+    const reuseFiles = isRegenerate && parentMessage?.files;
+    if (reuseFiles && parentMessage.files?.length) {
+      currentMsg.files = parentMessage.files;
+      setFiles(new Map());
+      setFilesToDelete({});
+    } else if (files.size > 0) {
+      currentMsg.files = Array.from(files.values()).map((file) => ({
+        file_id: file.file_id,
+        filepath: file.filepath,
+        type: file.type || '', // Ensure type is not undefined
+        height: file.height,
+        width: file.width,
+      }));
+      setFiles(new Map());
+      setFilesToDelete({});
+    }
 
     // construct the placeholder response message
     const generation = editedText ?? latestMessage?.text ?? '';
@@ -311,15 +323,11 @@ export default function useChatHelpers(index = 0, paramId) {
   );
   const [showPopover, setShowPopover] = useRecoilState(store.showPopoverFamily(index));
   const [abortScroll, setAbortScroll] = useRecoilState(store.abortScrollFamily(index));
-  const [autoScroll, setAutoScroll] = useRecoilState(store.autoScrollFamily(index));
   const [preset, setPreset] = useRecoilState(store.presetByIndex(index));
-  const [textareaHeight, setTextareaHeight] = useRecoilState(store.textareaHeightFamily(index));
   const [optionSettings, setOptionSettings] = useRecoilState(store.optionSettingsFamily(index));
   const [showAgentSettings, setShowAgentSettings] = useRecoilState(
     store.showAgentSettingsFamily(index),
   );
-
-  const [files, setFiles] = useState<ExtendedFile[]>([]);
 
   return {
     newConversation,
@@ -347,8 +355,6 @@ export default function useChatHelpers(index = 0, paramId) {
     setShowPopover,
     abortScroll,
     setAbortScroll,
-    autoScroll,
-    setAutoScroll,
     showBingToneSetting,
     setShowBingToneSetting,
     preset,
@@ -357,10 +363,12 @@ export default function useChatHelpers(index = 0, paramId) {
     setOptionSettings,
     showAgentSettings,
     setShowAgentSettings,
-    textareaHeight,
-    setTextareaHeight,
     files,
     setFiles,
     invalidateConvos,
+    filesLoading,
+    setFilesLoading,
+    showStopButton,
+    setShowStopButton,
   };
 }

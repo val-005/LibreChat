@@ -4,10 +4,13 @@ const User = require('../../models/User');
 const Session = require('../../models/Session');
 const Token = require('../../models/schema/tokenSchema');
 const { registerSchema, errorsToString } = require('../../strategies/validators');
-const config = require('../../../config/loader');
 const { sendEmail } = require('../utils');
-const domains = config.domains;
-const isProduction = config.isProduction;
+const domains = {
+  client: process.env.DOMAIN_CLIENT,
+  server: process.env.DOMAIN_SERVER,
+};
+
+const isProduction = process.env.NODE_ENV === 'production';
 
 /**
  * Logout user
@@ -128,7 +131,7 @@ const requestPasswordReset = async (email) => {
   const link = `${domains.client}/reset-password?token=${resetToken}&userId=${user._id}`;
 
   const emailEnabled =
-    !!process.env.EMAIL_SERVICE &&
+    (!!process.env.EMAIL_SERVICE || !!process.env.EMAIL_HOST) &&
     !!process.env.EMAIL_USERNAME &&
     !!process.env.EMAIL_PASSWORD &&
     !!process.env.EMAIL_FROM;
@@ -182,7 +185,7 @@ const resetPassword = async (userId, token, password) => {
     {
       name: user.name,
     },
-    'resetPassword.handlebars',
+    'passwordReset.handlebars',
   );
 
   await passwordResetToken.deleteOne();

@@ -7,7 +7,6 @@ const { Calculator } = require('langchain/tools/calculator');
 const { WebBrowser } = require('langchain/tools/webbrowser');
 const {
   availableTools,
-  CodeInterpreter,
   AIPluginTool,
   GoogleSearchAPI,
   WolframAlphaAPI,
@@ -17,7 +16,7 @@ const {
   StableDiffusionAPI,
   DALLE3,
   StructuredSD,
-  AzureCognitiveSearch,
+  AzureAISearch,
   StructuredACS,
   E2BTools,
   CodeSherpa,
@@ -96,12 +95,11 @@ const loadTools = async ({
 }) => {
   const toolConstructors = {
     calculator: Calculator,
-    codeinterpreter: CodeInterpreter,
     google: GoogleSearchAPI,
     wolfram: functions ? StructuredWolfram : WolframAlphaAPI,
     'dall-e': OpenAICreateImage,
     'stable-diffusion': functions ? StructuredSD : StableDiffusionAPI,
-    'azure-cognitive-search': functions ? StructuredACS : AzureCognitiveSearch,
+    'azure-ai-search': functions ? StructuredACS : AzureAISearch,
     CodeBrew: CodeBrew,
   };
 
