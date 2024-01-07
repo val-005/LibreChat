@@ -4,28 +4,36 @@ const cors = require('cors');
 const express = require('express');
 const passport = require('passport');
 const mongoSanitize = require('express-mongo-sanitize');
-const errorController = require('./controllers/ErrorController');
-const configureSocialLogins = require('./socialLogins');
-const { connectDb, indexSync } = require('../lib/db');
-const config = require('../config');
-const routes = require('./routes');
+const { initializeFirebase } = require('~/server/services/Files/Firebase/initialize');
+const loadCustomConfig = require('~/server/services/Config/loadCustomConfig');
+const errorController = require('~/server/controllers/ErrorController');
+const configureSocialLogins = require('~/server/socialLogins');
+const noIndex = require('~/server/middleware/noIndex');
+const { connectDb, indexSync } = require('~/lib/db');
+const { logger } = require('~/config');
+
+const routes = require('~/server/routes');
+const paths = require('~/config/paths');
 
 const { PORT, HOST, ALLOW_SOCIAL_LOGIN } = process.env ?? {};
 
 const port = Number(PORT) || 3080;
 const host = HOST || 'localhost';
 const projectPath = path.join(__dirname, '..', '..', 'client');
-const { jwtLogin, passportLogin } = require('../strategies');
+const { jwtLogin, passportLogin } = require('~/strategies');
 
 const startServer = async () => {
   await connectDb();
-  console.log('Connected to MongoDB');
+  logger.info('Connected to MongoDB');
+  await loadCustomConfig();
+  initializeFirebase();
   await indexSync();
 
   const app = express();
-  app.locals.config = config;
+  app.locals.config = paths;
 
   // Middleware
+  app.use(noIndex);
   app.use(errorController);
   app.use(express.json({ limit: '3mb' }));
   app.use(mongoSanitize());
@@ -77,11 +85,11 @@ const startServer = async () => {
 
   app.listen(port, host, () => {
     if (host == '0.0.0.0') {
-      console.log(
+      logger.info(
         `Server listening on all interfaces at port ${port}. Use http://localhost:${port} to access it`,
       );
     } else {
-      console.log(`Server listening at http://${host == '0.0.0.0' ? 'localhost' : host}:${port}`);
+      logger.info(`Server listening at http://${host == '0.0.0.0' ? 'localhost' : host}:${port}`);
     }
   });
 };
@@ -91,13 +99,12 @@ startServer();
 let messageCount = 0;
 process.on('uncaughtException', (err) => {
   if (!err.message.includes('fetch failed')) {
-    console.error('There was an uncaught error:');
-    console.error(err);
+    logger.error('There was an uncaught error:', err);
   }
 
   if (err.message.includes('fetch failed')) {
     if (messageCount === 0) {
-      console.error('Meilisearch error, search will be disabled');
+      logger.warn('Meilisearch error, search will be disabled');
       messageCount++;
     }
 
@@ -105,7 +112,7 @@ process.on('uncaughtException', (err) => {
   }
 
   if (err.message.includes('OpenAIError') || err.message.includes('ChatCompletionMessage')) {
-    console.error(
+    logger.error(
       '\n\nAn Uncaught `OpenAIError` error may be due to your reverse-proxy setup or stream configuration, or a bug in the `openai` node package.',
     );
     return;

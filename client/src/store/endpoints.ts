@@ -1,5 +1,6 @@
 import { atom, selector } from 'recoil';
-import { TEndpointsConfig, EModelEndpoint } from 'librechat-data-provider';
+import { EModelEndpoint } from 'librechat-data-provider';
+import type { TEndpointsConfig } from 'librechat-data-provider';
 
 const defaultConfig: TEndpointsConfig = {
   [EModelEndpoint.azureOpenAI]: null,
@@ -10,6 +11,7 @@ const defaultConfig: TEndpointsConfig = {
   [EModelEndpoint.gptPlugins]: null,
   [EModelEndpoint.google]: null,
   [EModelEndpoint.anthropic]: null,
+  [EModelEndpoint.custom]: null,
 };
 
 const endpointsConfig = atom<TEndpointsConfig>({
@@ -54,6 +56,7 @@ const availableEndpoints = selector({
       'bingAI',
       'google',
       'anthropic',
+      'custom',
     ];
     const f = get(endpointsFilter);
     return endpoints.filter((endpoint) => f[endpoint]);

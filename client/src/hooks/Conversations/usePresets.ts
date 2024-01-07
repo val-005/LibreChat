@@ -1,43 +1,50 @@
-import {
-  QueryKeys,
-  modularEndpoints,
-  useGetPresetsQuery,
-  useCreatePresetMutation,
-} from 'librechat-data-provider';
 import filenamify from 'filenamify';
-import { useCallback, useEffect, useRef } from 'react';
-import { useRecoilState, useSetRecoilState } from 'recoil';
 import exportFromJSON from 'export-from-json';
+import { useCallback, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { TPreset } from 'librechat-data-provider';
-import { useUpdatePresetMutation, useDeletePresetMutation } from '~/data-provider';
+import { QueryKeys, modularEndpoints } from 'librechat-data-provider';
+import { useRecoilState, useSetRecoilState, useRecoilValue } from 'recoil';
+import { useCreatePresetMutation } from 'librechat-data-provider/react-query';
+import type { TPreset, TEndpointsConfig } from 'librechat-data-provider';
+import {
+  useUpdatePresetMutation,
+  useDeletePresetMutation,
+  useGetPresetsQuery,
+} from '~/data-provider';
 import { useChatContext, useToastContext } from '~/Providers';
 import useNavigateToConvo from '~/hooks/useNavigateToConvo';
+import { cleanupPreset, getEndpointField } from '~/utils';
 import useDefaultConvo from '~/hooks/useDefaultConvo';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { NotificationSeverity } from '~/common';
 import useLocalize from '~/hooks/useLocalize';
-import { cleanupPreset } from '~/utils';
 import store from '~/store';
 
 export default function usePresets() {
   const localize = useLocalize();
-  const { user } = useAuthContext();
+  const hasLoaded = useRef(false);
   const queryClient = useQueryClient();
   const { showToast } = useToastContext();
-  const hasLoaded = useRef(false);
+  const { user, isAuthenticated } = useAuthContext();
 
+  const modularChat = useRecoilValue(store.modularChat);
   const [_defaultPreset, setDefaultPreset] = useRecoilState(store.defaultPreset);
   const setPresetModalVisible = useSetRecoilState(store.presetModalVisible);
   const { preset, conversation, newConversation, setPreset } = useChatContext();
-  const presetsQuery = useGetPresetsQuery({ enabled: !!user });
+  const presetsQuery = useGetPresetsQuery({ enabled: !!user && isAuthenticated });
 
   useEffect(() => {
-    if (_defaultPreset || !presetsQuery.data || hasLoaded.current) {
+    const { data: presets } = presetsQuery;
+    if (_defaultPreset || !presets || hasLoaded.current) {
       return;
     }
 
-    const defaultPreset = presetsQuery.data.find((p) => p.defaultPreset);
+    if (presets && presets.length > 0 && user && presets[0].user !== user?.id) {
+      presetsQuery.refetch();
+      return;
+    }
+
+    const defaultPreset = presets.find((p) => p.defaultPreset);
     if (!defaultPreset) {
       hasLoaded.current = true;
       return;
@@ -49,7 +56,7 @@ export default function usePresets() {
     hasLoaded.current = true;
     // dependencies are stable and only needed once
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [presetsQuery.data]);
+  }, [presetsQuery.data, user]);
 
   const setPresets = useCallback(
     (presets: TPreset[]) => {
@@ -153,14 +160,21 @@ export default function usePresets() {
       duration: 750,
     });
 
+    const endpointsConfig = queryClient.getQueryData<TEndpointsConfig>([QueryKeys.endpoints]);
+
+    const currentEndpointType = getEndpointField(endpointsConfig, endpoint, 'type');
+    const endpointType = getEndpointField(endpointsConfig, newPreset.endpoint, 'type');
+
     if (
-      modularEndpoints.has(endpoint ?? '') &&
-      modularEndpoints.has(newPreset?.endpoint ?? '') &&
-      endpoint === newPreset?.endpoint
+      (modularEndpoints.has(endpoint ?? '') || modularEndpoints.has(currentEndpointType ?? '')) &&
+      (modularEndpoints.has(newPreset?.endpoint ?? '') ||
+        modularEndpoints.has(endpointType ?? '')) &&
+      (endpoint === newPreset?.endpoint || modularChat)
     ) {
       const currentConvo = getDefaultConversation({
-        conversation: conversation ?? {},
-        preset: newPreset,
+        /* target endpointType is necessary to avoid endpoint mixing */
+        conversation: { ...(conversation ?? {}), endpointType },
+        preset: { ...newPreset, endpointType },
       });
 
       /* We don't reset the latest message, only when changing settings mid-converstion */

@@ -1,15 +1,15 @@
 import { memo } from 'react';
 import { useRecoilValue } from 'recoil';
 import { useParams } from 'react-router-dom';
-import { useGetMessagesByConvoId } from 'librechat-data-provider';
+import { useGetMessagesByConvoId } from 'librechat-data-provider/react-query';
 import { useChatHelpers, useSSE } from '~/hooks';
 // import GenerationButtons from './Input/GenerationButtons';
 import MessagesView from './Messages/MessagesView';
 // import OptionsBar from './Input/OptionsBar';
+import { Spinner } from '~/components/svg';
 import { ChatContext } from '~/Providers';
 import Presentation from './Presentation';
 import ChatForm from './Input/ChatForm';
-import { Spinner } from '~/components';
 import { buildTree } from '~/utils';
 import Landing from './Landing';
 import Header from './Header';

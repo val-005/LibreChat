@@ -1,16 +1,18 @@
+const { EModelEndpoint } = require('librechat-data-provider');
+const { useAzurePlugins } = require('~/server/services/Config/EndpointService').config;
 const {
   getOpenAIModels,
-  getChatGPTBrowserModels,
+  getGoogleModels,
   getAnthropicModels,
+  getChatGPTBrowserModels,
 } = require('~/server/services/ModelService');
-const { EModelEndpoint } = require('~/server/routes/endpoints/schemas');
-const { useAzurePlugins } = require('~/server/services/Config/EndpointService').config;
 
 const fitlerAssistantModels = (str) => {
   return /gpt-4|gpt-3\\.5/i.test(str) && !/vision|instruct/i.test(str);
 };
 
 async function loadDefaultModels() {
+  const google = getGoogleModels();
   const openAI = await getOpenAIModels();
   const anthropic = getAnthropicModels();
   const chatGPTBrowser = getChatGPTBrowserModels();
@@ -19,13 +21,13 @@ async function loadDefaultModels() {
 
   return {
     [EModelEndpoint.openAI]: openAI,
+    [EModelEndpoint.google]: google,
+    [EModelEndpoint.anthropic]: anthropic,
+    [EModelEndpoint.gptPlugins]: gptPlugins,
     [EModelEndpoint.azureOpenAI]: azureOpenAI,
-    [EModelEndpoint.assistant]: openAI.filter(fitlerAssistantModels),
-    [EModelEndpoint.google]: ['chat-bison', 'text-bison', 'codechat-bison'],
     [EModelEndpoint.bingAI]: ['BingAI', 'Sydney'],
     [EModelEndpoint.chatGPTBrowser]: chatGPTBrowser,
-    [EModelEndpoint.gptPlugins]: gptPlugins,
-    [EModelEndpoint.anthropic]: anthropic,
+    [EModelEndpoint.assistant]: openAI.filter(fitlerAssistantModels),
   };
 }
 

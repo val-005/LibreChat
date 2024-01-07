@@ -1,4 +1,4 @@
-const { EModelEndpoint } = require('~/server/routes/endpoints/schemas');
+const { EModelEndpoint } = require('librechat-data-provider');
 const loadAsyncEndpoints = require('./loadAsyncEndpoints');
 const { config } = require('./EndpointService');
 

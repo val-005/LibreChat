@@ -1,10 +1,16 @@
 import { useRecoilValue } from 'recoil';
 import { useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { useGetConvoIdQuery, useGetModelsQuery } from 'librechat-data-provider';
+import {
+  useGetConvoIdQuery,
+  useGetModelsQuery,
+  useGetEndpointsQuery,
+} from 'librechat-data-provider/react-query';
+import { TPreset } from 'librechat-data-provider';
 import { useNewConvo, useConfigOverride } from '~/hooks';
 import ChatView from '~/components/Chat/ChatView';
 import useAuthRedirect from './useAuthRedirect';
+import { Spinner } from '~/components/svg';
 import store from '~/store';
 
 export default function ChatRoute() {
@@ -21,20 +27,37 @@ export default function ChatRoute() {
   const initialConvoQuery = useGetConvoIdQuery(conversationId ?? '', {
     enabled: isAuthenticated && conversationId !== 'new',
   });
+  const endpointsQuery = useGetEndpointsQuery({ enabled: isAuthenticated && modelsQueryEnabled });
 
   useEffect(() => {
-    if (conversationId === 'new' && modelsQuery.data && !hasSetConversation.current) {
+    if (
+      conversationId === 'new' &&
+      endpointsQuery.data &&
+      modelsQuery.data &&
+      !hasSetConversation.current
+    ) {
       newConversation({ modelsData: modelsQuery.data });
       hasSetConversation.current = true;
-    } else if (initialConvoQuery.data && modelsQuery.data && !hasSetConversation.current) {
+    } else if (
+      initialConvoQuery.data &&
+      endpointsQuery.data &&
+      modelsQuery.data &&
+      !hasSetConversation.current
+    ) {
       newConversation({
         template: initialConvoQuery.data,
+        /* this is necessary to load all existing settings */
+        preset: initialConvoQuery.data as TPreset,
         modelsData: modelsQuery.data,
       });
       hasSetConversation.current = true;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialConvoQuery.data, modelsQuery.data]);
+  }, [initialConvoQuery.data, modelsQuery.data, endpointsQuery.data]);
+
+  if (endpointsQuery.isLoading || modelsQuery.isLoading) {
+    return <Spinner className="m-auto dark:text-white" />;
+  }
 
   if (!isAuthenticated) {
     return null;
