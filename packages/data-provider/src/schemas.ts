@@ -1,4 +1,8 @@
 import { z } from 'zod';
+import type { TMessageContentParts } from './types/assistants';
+import type { TFile } from './types/files';
+
+export const isUUID = z.string().uuid();
 
 export enum EModelEndpoint {
   azureOpenAI = 'azureOpenAI',
@@ -8,9 +12,21 @@ export enum EModelEndpoint {
   google = 'google',
   gptPlugins = 'gptPlugins',
   anthropic = 'anthropic',
-  assistant = 'assistant',
+  assistants = 'assistants',
   custom = 'custom',
 }
+
+export const defaultAssistantFormValues = {
+  assistant: '',
+  id: '',
+  name: '',
+  description: '',
+  instructions: '',
+  model: 'gpt-3.5-turbo-1106',
+  functions: [],
+  code_interpreter: false,
+  retrieval: false,
+};
 
 export const endpointSettings = {
   [EModelEndpoint.google]: {
@@ -51,6 +67,26 @@ const google = endpointSettings[EModelEndpoint.google];
 export const eModelEndpointSchema = z.nativeEnum(EModelEndpoint);
 
 export const extendedModelEndpointSchema = z.union([eModelEndpointSchema, z.string()]);
+
+export enum ImageDetail {
+  low = 'low',
+  auto = 'auto',
+  high = 'high',
+}
+
+export const imageDetailNumeric = {
+  [ImageDetail.low]: 0,
+  [ImageDetail.auto]: 1,
+  [ImageDetail.high]: 2,
+};
+
+export const imageDetailValue = {
+  0: ImageDetail.low,
+  1: ImageDetail.auto,
+  2: ImageDetail.high,
+};
+
+export const eImageDetailSchema = z.nativeEnum(ImageDetail);
 
 export const tPluginAuthConfigSchema = z.object({
   authField: z.string(),
@@ -133,21 +169,16 @@ export const tMessageSchema = z.object({
   unfinished: z.boolean().optional(),
   searchResult: z.boolean().optional(),
   finish_reason: z.string().optional(),
+  /* assistant */
+  thread_id: z.string().optional(),
 });
 
 export type TMessage = z.input<typeof tMessageSchema> & {
   children?: TMessage[];
   plugin?: TResPlugin | null;
   plugins?: TResPlugin[];
-  files?: {
-    type: string;
-    file_id: string;
-    filename?: string;
-    preview?: string;
-    filepath?: string;
-    height?: number;
-    width?: number;
-  }[];
+  content?: TMessageContentParts[];
+  files?: Partial<TFile>[];
 };
 
 export const tConversationSchema = z.object({
@@ -184,12 +215,16 @@ export const tConversationSchema = z.object({
   toneStyle: z.string().nullable().optional(),
   maxOutputTokens: z.number().optional(),
   agentOptions: tAgentOptionsSchema.nullable().optional(),
+  file_ids: z.array(z.string()).optional(),
+  /* vision */
+  resendImages: z.boolean().optional(),
+  imageDetail: eImageDetailSchema.optional(),
   /* assistant */
   assistant_id: z.string().optional(),
-  thread_id: z.string().optional(),
+  instructions: z.string().optional(),
+  /** Used to overwrite active conversation settings when saving a Preset */
+  presetOverride: z.record(z.unknown()).optional(),
 });
-
-export type TConversation = z.infer<typeof tConversationSchema>;
 
 export const tPresetSchema = tConversationSchema
   .omit({
@@ -200,11 +235,12 @@ export const tPresetSchema = tConversationSchema
   })
   .merge(
     z.object({
-      conversationId: z.string().optional(),
+      conversationId: z.string().nullable().optional(),
       presetId: z.string().nullable().optional(),
       title: z.string().nullable().optional(),
       defaultPreset: z.boolean().optional(),
       order: z.number().optional(),
+      endpoint: extendedModelEndpointSchema.nullable(),
     }),
   );
 
@@ -222,6 +258,10 @@ export const tPresetUpdateSchema = tConversationSchema.merge(
 
 export type TPreset = z.infer<typeof tPresetSchema>;
 
+export type TConversation = z.infer<typeof tConversationSchema> & {
+  presetOverride?: Partial<TPreset>;
+};
+
 // type DefaultSchemaValues = Partial<typeof google>;
 
 export const openAISchema = tConversationSchema
@@ -233,6 +273,8 @@ export const openAISchema = tConversationSchema
     top_p: true,
     presence_penalty: true,
     frequency_penalty: true,
+    resendImages: true,
+    imageDetail: true,
   })
   .transform((obj) => ({
     ...obj,
@@ -243,6 +285,8 @@ export const openAISchema = tConversationSchema
     top_p: obj.top_p ?? 1,
     presence_penalty: obj.presence_penalty ?? 0,
     frequency_penalty: obj.frequency_penalty ?? 0,
+    resendImages: obj.resendImages ?? false,
+    imageDetail: obj.imageDetail ?? ImageDetail.auto,
   }))
   .catch(() => ({
     model: 'gpt-3.5-turbo',
@@ -252,6 +296,8 @@ export const openAISchema = tConversationSchema
     top_p: 1,
     presence_penalty: 0,
     frequency_penalty: 0,
+    resendImages: false,
+    imageDetail: ImageDetail.auto,
   }));
 
 export const googleSchema = tConversationSchema
@@ -440,7 +486,8 @@ export const assistantSchema = tConversationSchema
   .pick({
     model: true,
     assistant_id: true,
-    thread_id: true,
+    instructions: true,
+    promptPrefix: true,
   })
   .transform(removeNullishValues)
   .catch(() => ({}));
@@ -454,6 +501,8 @@ export const compactOpenAISchema = tConversationSchema
     top_p: true,
     presence_penalty: true,
     frequency_penalty: true,
+    resendImages: true,
+    imageDetail: true,
   })
   .transform((obj: Partial<TConversation>) => {
     const newObj: Partial<TConversation> = { ...obj };
@@ -471,6 +520,12 @@ export const compactOpenAISchema = tConversationSchema
     }
     if (newObj.frequency_penalty === 0) {
       delete newObj.frequency_penalty;
+    }
+    if (newObj.resendImages !== true) {
+      delete newObj.resendImages;
+    }
+    if (newObj.imageDetail === ImageDetail.auto) {
+      delete newObj.imageDetail;
     }
 
     return removeNullishValues(newObj);
